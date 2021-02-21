@@ -1,17 +1,16 @@
 import * as vscode from "vscode";
-import { exec, spawn } from "child_process";
+import { exec } from "child_process";
 
 export function activate(context: vscode.ExtensionContext) {
     let disposable = vscode.commands.registerCommand(
         "vsc-copy-html.copyFormattedHtml",
         async () => {
-            var osvar = process.platform;
+            const { platform } = process;
 
-            if (osvar === "darwin") {
+            if (platform === "win32") {
+                // Windows
                 exec(
-                    `clipboard=$(osascript -e 'the clipboard as «class HTML»' |   perl -ne 'print chr foreach unpack("C*",pack("H*",substr($_,11,-3)))')
-                    [[ $clipboard =~ (<meta charset=\'utf-8\'>)(<div)(.*)(<\/div>) ]]
-                    echo '<code'\${BASH_REMATCH[3]}'</code>' | pbcopy`,
+                    `$text = Get-Clipboard -TextFormatType Html;$regex = "<!--StartFragment--><div(.*?)>(.+?)(<\/div>)<!--EndFragment-->";$text = "<code class=""vscode"">$(([regex]($regex)).match($text).groups[2].value)</code>";Set-Clipboard -value $text`,
                     { shell: "powershell.exe" },
                     (error, stdout, stderr) => {
                         if (error) {
@@ -22,13 +21,13 @@ export function activate(context: vscode.ExtensionContext) {
                             console.log(`stderr: ${stderr}`);
                             return;
                         }
-                        console.log(`stdout: ${stdout}`);
                     }
                 );
-            } else if (osvar === "win32") {
+            } else if (platform === "darwin") {
+                // MacOS
                 exec(
-                    `$text = Get-Clipboard -TextFormatType Html;$regex = "<!--StartFragment--><div(.*?)>(.+?)(<\/div>)<!--EndFragment-->";$text = "<code class=""codeblock"">$(([regex]($regex)).match($text).groups[2].value)</code>";Set-Clipboard -value $text`,
-                    { shell: "powershell.exe" },
+                    `echo $(osascript -e 'the clipboard as «class HTML»' |   perl -ne 'print chr foreach unpack("C*",pack("H*",substr($_,11,-3)))')`,
+                    { shell: "bash" },
                     (error, stdout, stderr) => {
                         if (error) {
                             console.log(`error: ${error.message}`);
@@ -38,7 +37,17 @@ export function activate(context: vscode.ExtensionContext) {
                             console.log(`stderr: ${stderr}`);
                             return;
                         }
-                        console.log(`stdout: ${stdout}`);
+
+                        const codeBlock = /<div.*?>(.*)<\/div>/;
+                        const match = stdout.match(codeBlock);
+
+                        if (!match) {
+                            return;
+                        }
+
+                        const code = `<code class="vscode">${match[1]}</code>`;
+
+                        exec(`echo '${code}' | pbcopy`);
                     }
                 );
             }

@@ -3,3 +3,12 @@ dist
 node_modules
 .vscode-test/
 *.vsix
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
